@@ -1,20 +1,59 @@
 from ollama import chat
-from ollama import ChatResponse
 
-stream= chat(model='llama3.1', messages=[{
-    'role':'user',
-    'content':'Why do I need to use venv in python?'
-}], stream = True)
-
-# print(response['message']['content'])
-for chunk in stream:
-    print(chunk['message']['content'], end='', flush=True)
+# Current chat
+# - Ask a question and get the response
+# Current conversation
+# - All the session's questions and responses
 
 
-stream= chat(model='llama3.1', messages=[{
-    'role':'user',
-    'content':'How to run a Python project without activating venv, for example running a cli tool? '
-}], stream = True)
+class CurrentChat:
+    def __init__(self, prompt: str = "", response: list = []):
+        self.prompt = prompt
+        self.response = response
 
-for chunk in stream:
-    print(chunk['message']['content'], end='', flush=True)
+    def set_prompt(self, new_prompt: str):
+        self.prompt = new_prompt
+
+    def set_response(self, chunk):
+        self.response.append(chunk)
+
+    def save_chat(self):
+        file_name = self.prompt.lower().replace(" ", "_")
+        full_response_content = "".join(chunk for chunk in self.response)
+
+        with open(f"./chats/{file_name}.md", "w") as new_chat:
+            new_chat.write(full_response_content)
+
+
+current_chat = CurrentChat()
+
+
+def ollama_chat(message: str):
+    stream = chat(
+        model="llama3.1",
+        messages=[{"role": "user", "content": message}],
+        stream=True,
+    )
+    for chunk in stream:
+        print(chunk.message.content, end="", flush=True)
+        current_chat.set_response(chunk.message.content)
+        if chunk.done:
+            print("\n")
+
+
+def main():
+    print("Exit with command /exit")
+    print("Save chat /save")
+    while True:
+        message = input(">>> Send a message: ").strip()
+        if message == "/exit":
+            return False
+        if message == "/save":
+            current_chat.save_chat()
+
+        if not message == "/save":
+            current_chat.set_prompt(message.strip())
+            ollama_chat(message)
+
+
+main()
